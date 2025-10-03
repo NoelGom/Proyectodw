@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+  <h1 class="mb-3">Jabones a Granel</h1>
+  <p>Elegí a dónde ir:</p>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary" href="{% url 'tienda:producto_list' %}">Productos</a>
+    <a class="btn btn-primary" href="{% url 'tienda:cliente_list' %}">Clientes</a>
+    <a class="btn btn-primary" href="{% url 'tienda:venta_list' %}">Ventas</a>
+  </div>
+{% endblock %}

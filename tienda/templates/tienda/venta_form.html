@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Nueva venta{% endblock %}
+{% block content %}
+<h1>Nueva venta</h1>
+<form method="post">{% csrf_token %}
+  <fieldset class="mb-3">
+    <legend>Encabezado</legend>
+    {{ form.as_p }}
+  </fieldset>
+
+  <fieldset class="mb-3">
+    <legend>Detalles</legend>
+    {{ formset.management_form }}
+    <table class="table table-dark table-sm align-middle">
+      <thead>
+        <tr><th>Producto</th><th>Litros</th><th>Precio Unitario</th><th>Eliminar</th></tr>
+      </thead>
+      <tbody>
+        {% for f in formset %}
+          <tr>
+            <td>{{ f.producto }}</td>
+            <td>{{ f.litros }}</td>
+            <td>{{ f.precio_unitario }}</td>
+            <td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <!-- Sin botón add_prefix('add') -->
+  </fieldset>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-success">Guardar y confirmar</button>
+    <a class="btn btn-outline-light" href="{% url 'tienda:venta_list' %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

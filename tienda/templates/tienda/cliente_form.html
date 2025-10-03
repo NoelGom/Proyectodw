@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Cliente{% endblock %}
+{% block content %}
+<h1>{{ form.instance.pk|yesno:"Editar cliente,Nuevo cliente" }}</h1>
+<form method="post" class="mt-3">{% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-success">Guardar</button>
+  <a class="btn btn-outline-light" href="{% url 'tienda:cliente_list' %}">Cancelar</a>
+</form>
+{% endblock %}

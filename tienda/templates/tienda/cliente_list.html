@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center">
+  <h1>Clientes</h1>
+  <a class="btn btn-primary" href="{% url 'tienda:cliente_create' %}">Nuevo</a>
+</div>
+<table class="table table-dark table-striped mt-3">
+  <thead><tr><th>Nombre</th><th>Teléfono</th><th>NIT</th><th></th></tr></thead>
+  <tbody>
+    {% for c in clientes %}
+    <tr>
+      <td>{{ c.nombres }} {{ c.apellidos }}</td><td>{{ c.telefono }}</td><td>{{ c.nit }}</td>
+      <td><a class="btn btn-sm btn-secondary" href="{% url 'tienda:cliente_update' c.pk %}">Editar</a></td>
+    </tr>
+    {% empty %}<tr><td colspan="4">Sin clientes.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Panel{% endblock %}
+{% block content %}
+<h1 class="mb-4">Panel de Administración</h1>
+<table class="table table-hover">
+  <thead><tr><th>#</th><th>Nombre</th><th>Tipo</th><th>Q/Lt</th><th>Acciones</th></tr></thead>
+  <tbody>
+  {% for p in productos %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td>{{ p.nombre }}</td>
+      <td>{{ p.tipo }}</td>
+      <td>{{ p.precio_litro }}</td>
+      <td>
+        <a class="btn btn-sm btn-outline-primary" href="#">Editar</a>
+        <a class="btn btn-sm btn-outline-danger" href="#">Eliminar</a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<a class="btn btn-success" href="#">Nuevo producto</a>
+{% endblock %}
