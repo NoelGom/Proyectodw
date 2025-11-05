@@ -21,7 +21,7 @@ urlpatterns = [
     path("ventas/nueva/", views.venta_crear, name="venta_create"),
     path("ventas/<int:pk>/", views.VentaDetailView.as_view(), name="venta_detail"),
 
-    # Páginas varias
+    # Vistas varias
     path("carrito/", views.carrito, name="carrito"),
     path("checkout/", views.checkout, name="checkout"),
     path("catalogo/", views.catalogo, name="catalogo"),

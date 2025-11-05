@@ -10,17 +10,25 @@
 <body class="bg-dark text-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-black">
   <div class="container-fluid">
-    <a class="navbar-brand" href="#">Jabones a Granel</a>
+    <a class="navbar-brand" href="{% url 'tienda:home' %}">Jabones a Granel</a>
     <div class="navbar-nav">
       <a class="nav-link" href="{% url 'tienda:producto_list' %}">Productos</a>
       <a class="nav-link" href="{% url 'tienda:cliente_list' %}">Clientes</a>
       <a class="nav-link" href="{% url 'tienda:venta_list' %}">Ventas</a>
     </div>
+    <div class="ms-auto">
+      {% if user.is_authenticated %}
+        <span class="me-2">Hola, {{ user.username }}</span>
+        <a class="btn btn-outline-light btn-sm" href="{% url 'logout' %}">Salir</a>
+      {% else %}
+        <a class="btn btn-outline-light btn-sm" href="{% url 'login' %}">Ingresar</a>
+      {% endif %}
+    </div>
   </div>
 </nav>
 <main class="container py-4">
   {% for message in messages %}
-  <div class="alert alert-{{ message.tags }}">{% autoescape off %}{{ message }}{% endautoescape %}</div>
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
   {% endfor %}
   {% block content %}{% endblock %}
 </main>

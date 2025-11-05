@@ -26,7 +26,6 @@
         {% endfor %}
       </tbody>
     </table>
-    <!-- Sin botón add_prefix('add') -->
   </fieldset>
 
   <div class="d-flex gap-2">
@@ -34,4 +33,32 @@
     <a class="btn btn-outline-light" href="{% url 'tienda:venta_list' %}">Cancelar</a>
   </div>
 </form>
+
+<!-- JS: autocompletar precio por litro según producto -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Precios enviados desde la vista
+  const preciosArr = JSON.parse('{{ precios_json|escapejs }}'); // [{id, precio_litro}, ...]
+  const precios = {};
+  for (const p of preciosArr) precios[String(p.id)] = String(p.precio_litro);
+
+  function syncRow(row) {
+    const sel = row.querySelector("select[name$='-producto']");
+    const precio = row.querySelector("input[name$='-precio_unitario']");
+    if (!sel || !precio) return;
+
+    const setPrice = () => {
+      const pid = sel.value;
+      if (precios[pid]) precio.value = precios[pid];
+    };
+
+    sel.addEventListener('change', setPrice);
+
+    // Si el precio está vacío al cargar, intenta autollenarlo
+    if (!precio.value) setPrice();
+  }
+
+  document.querySelectorAll('tbody tr').forEach(syncRow);
+});
+</script>
 {% endblock %}

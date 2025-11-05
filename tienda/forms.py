@@ -21,15 +21,13 @@ class DetalleVentaForm(forms.ModelForm):
     class Meta:
         model = DetalleVenta
         fields = ["producto", "litros", "precio_unitario"]
+        widgets = {
+            "litros": forms.NumberInput(attrs={"step": "0.01"}),
+            "precio_unitario": forms.NumberInput(attrs={"step": "0.01"}),
+        }
 
-# Dejamos varias filas por defecto y SIN botón add_prefix en el template
 DetalleVentaFormSet = inlineformset_factory(
-    Venta,
-    DetalleVenta,
-    form=DetalleVentaForm,
+    Venta, DetalleVenta, form=DetalleVentaForm,
     fields=["producto", "litros", "precio_unitario"],
-    extra=3,              # 3 filas en blanco por defecto
-    can_delete=True,
-    min_num=1,
-    validate_min=True,
+    extra=3, can_delete=True, min_num=1, validate_min=True
 )
