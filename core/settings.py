@@ -1,5 +1,5 @@
 """
-Django settings for core project (Railway-ready).
+Django settings for core project (Railway-ready, sin autenticación).
 """
 from pathlib import Path
 import os
@@ -13,15 +13,13 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('1','true','yes')
 
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '.railway.app,127.0.0.1,localhost').split(',')
-
-
 RAILWAY_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
 CSRF_TRUSTED_ORIGINS = [f"https://{RAILWAY_DOMAIN}"] if RAILWAY_DOMAIN else []
 CSRF_TRUSTED_ORIGINS += ["https://*.railway.app"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
+    'django.contrib.auth',      
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -31,7 +29,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',   
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -72,7 +70,7 @@ else:
         }
     }
 
-# i18n
+
 LANGUAGE_CODE = 'es'
 TIME_ZONE = 'America/Guatemala'
 USE_I18N = True
@@ -80,18 +78,11 @@ USE_TZ = True
 
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'     
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
-
 STORAGES = {
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
-
-LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "tienda:home"
-LOGOUT_REDIRECT_URL = "login"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
