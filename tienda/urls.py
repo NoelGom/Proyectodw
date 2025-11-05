@@ -5,7 +5,11 @@ from . import views
 app_name = "tienda"
 
 urlpatterns = [
+    # Home / público
     path("", views.home, name="home"),
+    path("carrito/", views.carrito, name="carrito"),
+    path("checkout/", views.checkout, name="checkout"),
+    path("catalogo/", views.catalogo, name="catalogo"),
 
     # Productos
     path("productos/", views.ProductoListView.as_view(), name="producto_list"),
@@ -24,9 +28,4 @@ urlpatterns = [
     path("ventas/nueva/", views.venta_crear, name="venta_create"),
     path("ventas/<int:pk>/", views.VentaDetailView.as_view(), name="venta_detail"),
     path("ventas/<int:pk>/pdf/", views.venta_pdf, name="venta_pdf"),
-
-    # Público
-    path("carrito/", views.carrito, name="carrito"),
-    path("checkout/", views.checkout, name="checkout"),
-    path("catalogo/", views.catalogo, name="catalogo"),
 ]

@@ -25,8 +25,7 @@ def catalogo(request):
     productos = Producto.objects.filter(activo=True).order_by("nombre")
     return render(request, "tienda/catalogo.html", {"productos": productos})
 
-
-
+# -------- Productos --------
 class ProductoListView(ListView):
     model = Producto
     template_name = "tienda/producto_list.html"
@@ -96,8 +95,7 @@ def producto_import_csv(request):
     messages.success(request, f"Importados {creados} nuevos y actualizados {actualizados}.")
     return redirect("tienda:producto_list")
 
-
-
+# -------- Clientes --------
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
@@ -122,8 +120,7 @@ class ClienteUpdateView(UpdateView):
     template_name = "tienda/cliente_form.html"
     success_url = reverse_lazy("tienda:cliente_list")
 
-
-
+# -------- Ventas --------
 def venta_crear(request):
     venta = Venta()
     if request.method == "POST":
@@ -154,10 +151,6 @@ class VentaDetailView(DetailView):
 
 
 def venta_pdf(request, pk):
-    """
-    Implementación mínima para no romper el despliegue.
-    Más adelante se puede reemplazar por generación real de PDF.
-    """
     venta = get_object_or_404(Venta, pk=pk)
     contenido = (
         f"Comprobante de Venta #{venta.id}\n"

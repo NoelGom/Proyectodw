@@ -1,19 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Catálogo{% endblock %}
 {% block content %}
-<h1 class="mb-4">Catálogo</h1>
-<div class="row g-3">
+<h1>Catálogo</h1>
+<ul>
   {% for p in productos %}
-  <div class="col-12 col-md-4">
-    <div class="card h-100 shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">{{ p.nombre }}</h5>
-        <p class="mb-1"><strong>Tipo:</strong> {{ p.tipo|title }}</p>
-        <p><strong>Q/Lt:</strong> {{ p.precio_litro }}</p>
-        <a class="btn btn-primary w-100" href="{% url 'carrito' %}">Agregar (demo)</a>
-      </div>
-    </div>
-  </div>
+    <li>{{ p.nombre }} — Q{{ p.precio_por_litro }} / L</li>
+  {% empty %}
+    <li>Sin productos activos.</li>
   {% endfor %}
-</div>
+</ul>
 {% endblock %}
