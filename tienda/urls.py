@@ -24,14 +24,8 @@ urlpatterns = [
     path("ventas/<int:pk>/", views.VentaDetailView.as_view(), name="venta_detail"),
     path("ventas/<int:pk>/pdf/", views.venta_pdf, name="venta_pdf"),
 
-    # Otras vistas
+    # Público simple
     path("carrito/", views.carrito, name="carrito"),
     path("checkout/", views.checkout, name="checkout"),
     path("catalogo/", views.catalogo, name="catalogo"),
-
-    # Reportes
-    path("reportes/ventas/", views.reporte_ventas, name="reporte_ventas"),
-
-    # Logout
-    path("logout/", views.logout_view, name="logout"),
 ]
