@@ -22,7 +22,7 @@ urlpatterns = [
     path("ventas/nueva/", views.venta_crear, name="venta_crear"),
     path("ventas/<int:pk>/pdf/", views.venta_pdf, name="venta_pdf"),
 
-    # Catálogo (público)
+    # Catálogo
     path("catalogo/", views.catalogo, name="catalogo"),
 
     
