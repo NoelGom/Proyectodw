@@ -1,5 +1,4 @@
-# tienda/views.py
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.contrib import messages
@@ -7,14 +6,12 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
-from django.utils.dateparse import parse_date
-import csv, io, json
+import csv, io
 
 from .models import Producto, Cliente, Venta
 from .forms import ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
 
 
-# ------------------ Home ------------------
 def home(request):
     return render(request, "tienda/home.html")
 
@@ -29,7 +26,7 @@ def catalogo(request):
     return render(request, "tienda/catalogo.html", {"productos": productos})
 
 
-# ------------------ Productos ------------------
+
 class ProductoListView(ListView):
     model = Producto
     template_name = "tienda/producto_list.html"
@@ -81,14 +78,14 @@ def producto_import_csv(request):
 
     creados, actualizados = 0, 0
     for row in reader:
-        nombre = row.get("nombre") or row.get("Nombre")
+        nombre = (row.get("nombre") or row.get("Nombre") or "").strip()
         if not nombre:
             continue
         defaults = {
-            "tipo": row.get("tipo") or "",
+            "tipo": (row.get("tipo") or "").strip(),
             "precio_por_litro": row.get("precio_por_litro") or row.get("precio") or 0,
             "stock": row.get("stock") or 0,
-            "activo": str(row.get("activo") or "1") in ("1", "True", "true", "sí", "si"),
+            "activo": str(row.get("activo") or "1").lower() in ("1", "true", "sí", "si"),
         }
         obj, created = Producto.objects.update_or_create(nombre=nombre, defaults=defaults)
         if created:
@@ -100,7 +97,7 @@ def producto_import_csv(request):
     return redirect("tienda:producto_list")
 
 
-# ------------------ Clientes ------------------
+
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
@@ -126,7 +123,7 @@ class ClienteUpdateView(UpdateView):
     success_url = reverse_lazy("tienda:cliente_list")
 
 
-# ------------------ Ventas ------------------
+
 def venta_crear(request):
     venta = Venta()
     if request.method == "POST":
@@ -154,3 +151,19 @@ class VentaDetailView(DetailView):
     model = Venta
     template_name = "tienda/venta_detail.html"
     context_object_name = "venta"
+
+
+def venta_pdf(request, pk):
+    """
+    Implementación mínima para no romper el despliegue.
+    Más adelante se puede reemplazar por generación real de PDF.
+    """
+    venta = get_object_or_404(Venta, pk=pk)
+    contenido = (
+        f"Comprobante de Venta #{venta.id}\n"
+        f"Fecha: {venta.fecha}\n"
+        f"Cliente: {venta.cliente}\n"
+        f"Total: {venta.total}\n"
+        "\n(Exportación a PDF aún no implementada en producción.)\n"
+    )
+    return HttpResponse(contenido, content_type="text/plain; charset=utf-8")
