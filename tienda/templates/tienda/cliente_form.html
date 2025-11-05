@@ -6,18 +6,7 @@
 <form method="post" novalidate>
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <div>
-    <label>Nombre</label>
-    {{ form.nombre }}
-  </div>
-  <div>
-    <label>Teléfono</label>
-    {{ form.telefono }}
-  </div>
-  <div>
-    <label>NIT</label>
-    {{ form.nit }}
-  </div>
+  {{ form.as_p }}
 
   <div style="margin-top:10px;">
     <button class="btn btn-primary" type="submit">Guardar</button>

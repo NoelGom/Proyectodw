@@ -4,7 +4,7 @@
 <h1>Clientes</h1>
 
 <form method="get" class="mb-3">
-  <input type="text" name="q" placeholder="Buscar por nombre..." value="{{ request.GET.q }}">
+  <input type="text" name="q" placeholder="Buscar..." value="{{ request.GET.q }}">
   <button type="submit" class="btn btn-success btn-sm">Buscar</button>
   <a class="btn btn-success btn-sm" href="{% url 'tienda:cliente_create' %}">Nuevo</a>
 </form>
@@ -13,17 +13,29 @@
   <thead>
     <tr>
       <th>Nombre</th>
+      {% if clientes and clientes.0.telefono is not None %}
       <th>Teléfono</th>
+      {% endif %}
+      {% if clientes and clientes.0.nit is not None %}
       <th>NIT</th>
+      {% endif %}
       <th></th>
     </tr>
   </thead>
   <tbody>
     {% for c in clientes %}
     <tr>
-      <td>{{ c.nombre }}</td>
+      <td>
+        {% if c.nombre %}{{ c.nombre }}
+        {% else %}{{ c.nombres }} {{ c.apellidos }}
+        {% endif %}
+      </td>
+      {% if c.telefono is not None %}
       <td>{{ c.telefono|default:"-" }}</td>
+      {% endif %}
+      {% if c.nit is not None %}
       <td>{{ c.nit|default:"CF" }}</td>
+      {% endif %}
       <td><a href="{% url 'tienda:cliente_update' c.pk %}">Editar</a></td>
     </tr>
     {% empty %}

@@ -14,6 +14,30 @@ from .forms import (
     VentaForm, DetalleVentaFormSet
 )
 
+def _has(model, field_name: str) -> bool:
+    return field_name in {f.name for f in model._meta.get_fields()}
+
+def _cliente_nombre_lookup():
+    """Devuelve el campo principal para buscar/ordenar clientes."""
+    if _has(Cliente, "nombre"):
+        return "nombre"
+    elif _has(Cliente, "nombres"):
+        return "nombres"
+  
+    for f in Cliente._meta.get_fields():
+        if getattr(getattr(f, "get_internal_type", lambda: "")(), "") == "CharField":
+            return f.name
+    return "id"
+
+def _cliente_label(c):
+    """Devuelve un nombre legible del cliente para la UI."""
+    if hasattr(c, "nombre") and c.nombre:
+        return c.nombre
+    nombres = getattr(c, "nombres", "") or ""
+    apellidos = getattr(c, "apellidos", "") or ""
+    full = f"{nombres} {apellidos}".strip()
+    return full or str(c)
+
 
 def home(request):
     return render(request, "tienda/home.html")
@@ -28,7 +52,7 @@ def catalogo(request):
     productos = Producto.objects.filter(activo=True).order_by("nombre")
     return render(request, "tienda/catalogo.html", {"productos": productos})
 
-# ---------- PRODUCTOS ----------
+# ------------------ Productos ------------------
 class ProductoListView(ListView):
     model = Producto
     template_name = "tienda/producto_list.html"
@@ -58,6 +82,7 @@ def producto_export_csv(request):
     resp = HttpResponse(content_type="text/csv")
     resp["Content-Disposition"] = "attachment; filename=productos.csv"
     writer = csv.writer(resp)
+    
     writer.writerow(["nombre", "tipo", "precio_litro", "stock_litros", "activo"])
     for p in Producto.objects.all().order_by("nombre"):
         writer.writerow([p.nombre, p.tipo, p.precio_litro, p.stock_litros, int(p.activo)])
@@ -75,7 +100,6 @@ def producto_import_csv(request):
         messages.error(request, "Debes subir un archivo CSV.")
         return redirect("tienda:producto_list")
 
-  
     decoded = file.read().decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(decoded))
 
@@ -99,7 +123,7 @@ def producto_import_csv(request):
     messages.success(request, f"Importados {creados} nuevos y actualizados {actualizados}.")
     return redirect("tienda:producto_list")
 
-# ---------- CLIENTES ----------
+# ------------------ Clientes ------------------
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
@@ -107,10 +131,11 @@ class ClienteListView(ListView):
     paginate_by = 10
 
     def get_queryset(self):
+        name_field = _cliente_nombre_lookup()
         q = self.request.GET.get("q", "").strip()
-        qs = Cliente.objects.all().order_by("nombre")
+        qs = Cliente.objects.all().order_by(name_field)
         if q:
-            qs = qs.filter(nombre__icontains=q)
+            qs = qs.filter(**{f"{name_field}__icontains": q})
         return qs
 
 class ClienteCreateView(CreateView):
@@ -125,7 +150,7 @@ class ClienteUpdateView(UpdateView):
     template_name = "tienda/cliente_form.html"
     success_url = reverse_lazy("tienda:cliente_list")
 
-# ---------- VENTAS ----------
+# ------------------ Ventas ------------------
 def venta_crear(request):
     venta = Venta()
     if request.method == "POST":
@@ -136,10 +161,9 @@ def venta_crear(request):
                 venta = form.save()
                 formset.instance = venta
                 detalles = formset.save(commit=False)
-                # Si precio viene vacío, rellenar con precio_litro del producto
                 for d in detalles:
-                    if not d.precio_unitario:
-                        d.precio_unitario = d.producto.precio_litro
+                    if hasattr(d, "precio_unitario") and (d.precio_unitario is None or d.precio_unitario == ""):
+                        d.precio_unitario = getattr(d.producto, "precio_litro", 0)
                     d.save()
                 for obj in formset.deleted_objects:
                     obj.delete()
