@@ -1,18 +1,22 @@
+# tienda/views.py
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.contrib import messages
 from django.db import transaction
-from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
 from django.utils.dateparse import parse_date
-import json, io, csv
+from django.core.serializers.json import DjangoJSONEncoder
+
+import csv, io, json
 
 from .models import Producto, Cliente, Venta
 from .forms import ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
 
 
+
 def home(request):
+   
     return render(request, "tienda/home.html")
 
 def carrito(request):
@@ -25,12 +29,14 @@ def catalogo(request):
     productos = Producto.objects.filter(activo=True).order_by("nombre")[:50]
     return render(request, "tienda/catalogo.html", {"productos": productos})
 
+
 # ---------- Productos ----------
 class ProductoListView(ListView):
     model = Producto
     template_name = "tienda/producto_list.html"
     context_object_name = "productos"
     paginate_by = 10
+
     def get_queryset(self):
         qs = Producto.objects.all().order_by("nombre")
         q = self.request.GET.get("q", "").strip()
@@ -79,12 +85,14 @@ def producto_import_csv(request):
         return redirect("tienda:producto_list")
     return render(request, "tienda/producto_import.html")
 
+
 # ---------- Clientes ----------
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
     context_object_name = "clientes"
     paginate_by = 10
+
     def get_queryset(self):
         qs = Cliente.objects.all().order_by("apellidos","nombres")
         q = self.request.GET.get("q", "").strip()
@@ -104,9 +112,11 @@ class ClienteUpdateView(UpdateView):
     template_name = "tienda/cliente_form.html"
     success_url = reverse_lazy("tienda:cliente_list")
 
+
 # ---------- Ventas ----------
 def venta_crear(request):
-    precios_json = json.dumps(list(Producto.objects.values("id","precio_litro")), cls=DjangoJSONEncoder)
+    precios_json = json.dumps(list(Producto.objects.values("id","precio_litro")),
+                              cls=DjangoJSONEncoder)
     venta = Venta()
     if request.method == "POST":
         form = VentaForm(request.POST, instance=venta)
@@ -117,7 +127,7 @@ def venta_crear(request):
                 formset.instance = venta
                 formset.save()
                 try:
-                    venta.confirmar()
+                    venta.confirmar()  
                 except ValueError as e:
                     transaction.set_rollback(True)
                     messages.error(request, str(e))
@@ -128,6 +138,7 @@ def venta_crear(request):
     else:
         form = VentaForm(instance=venta)
         formset = DetalleVentaFormSet(instance=venta, prefix="det")
+
     return render(request, "tienda/venta_form.html",
                   {"form": form, "formset": formset, "precios_json": precios_json})
 
@@ -143,23 +154,21 @@ class VentaDetailView(DetailView):
     context_object_name = "venta"
 
 def venta_pdf(request, pk):
-    """
-    Importamos xhtml2pdf aquí adentro para que, si no está disponible en el contenedor,
-    no rompa el sitio completo. Si falla, devolvemos un PDF simple de cortesía.
-    """
+   
     try:
         from xhtml2pdf import pisa
-        venta = Venta.objects.select_related("cliente").prefetch_related("detalles__producto").get(pk=pk)
+        venta = (Venta.objects.select_related("cliente")
+                 .prefetch_related("detalles__producto").get(pk=pk))
         html = render(request, "tienda/venta_pdf.html", {"venta": venta}).content.decode("utf-8")
         result = io.BytesIO()
         pisa.CreatePDF(io.StringIO(html), dest=result)
         pdf = result.getvalue()
-    except Exception as e:
-       
-        pdf = b"%PDF-1.3\n%Fallback\n"
+    except Exception:
+        pdf = b"%PDF-1.3\n%Minimal\n"
     resp = HttpResponse(pdf, content_type="application/pdf")
     resp['Content-Disposition'] = f'inline; filename=venta_{pk}.pdf'
     return resp
+
 
 # ---------- Reporte ----------
 def reporte_ventas(request):
@@ -168,10 +177,12 @@ def reporte_ventas(request):
     qs = Venta.objects.select_related("cliente").all()
     if f1: qs = qs.filter(fecha__date__gte=f1)
     if f2: qs = qs.filter(fecha__date__lte=f2)
-    if request.GET.get("csv")=="1":
+    if request.GET.get("csv") == "1":
         resp = HttpResponse(content_type="text/csv")
-        resp["Content-Disposition"]="attachment; filename=reporte_ventas.csv"
-        w = csv.writer(resp); w.writerow(["ID","Fecha","Cliente","Total"])
-        for v in qs: w.writerow([v.id, v.fecha.strftime("%Y-%m-%d %H:%M"), str(v.cliente), f"{v.total}"])
+        resp["Content-Disposition"] = "attachment; filename=reporte_ventas.csv"
+        w = csv.writer(resp)
+        w.writerow(["ID","Fecha","Cliente","Total"])
+        for v in qs:
+            w.writerow([v.id, v.fecha.strftime("%Y-%m-%d %H:%M"), str(v.cliente), f"{v.total}"])
         return resp
-    return render(request,"tienda/reporte_ventas.html",{"ventas":qs, "desde":f1, "hasta":f2})
+    return render(request, "tienda/reporte_ventas.html", {"ventas": qs, "desde": f1, "hasta": f2})
