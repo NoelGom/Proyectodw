@@ -25,7 +25,7 @@ urlpatterns = [
     path("ventas/<int:pk>/", views.VentaDetailView.as_view(), name="venta_detail"),
     path("ventas/<int:pk>/pdf/", views.venta_pdf, name="venta_pdf"),
 
-    # Público simple
+    # Público
     path("carrito/", views.carrito, name="carrito"),
     path("checkout/", views.checkout, name="checkout"),
     path("catalogo/", views.catalogo, name="catalogo"),
