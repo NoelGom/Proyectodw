@@ -95,11 +95,17 @@ def producto_import_csv(request):
     messages.success(request, f"Importados {creados} nuevos y actualizados {actualizados}.")
     return redirect("tienda:producto_list")
 
-# -------- Clientes --------
+# --- CLIENTES ---
+from django.views.generic import ListView, CreateView, UpdateView
+from django.urls import reverse_lazy
+from .models import Cliente
+from .forms import ClienteForm
+
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
     context_object_name = "clientes"
+    paginate_by = 10
 
     def get_queryset(self):
         q = self.request.GET.get("q", "").strip()

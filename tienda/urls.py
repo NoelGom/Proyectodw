@@ -1,4 +1,3 @@
-# tienda/urls.py
 from django.urls import path
 from . import views
 
@@ -18,7 +17,7 @@ urlpatterns = [
     path("productos/export/csv/", views.producto_export_csv, name="producto_export_csv"),
     path("productos/import/csv/", views.producto_import_csv, name="producto_import_csv"),
 
-    # Clientes
+    # Clientes 
     path("clientes/", views.ClienteListView.as_view(), name="cliente_list"),
     path("clientes/nuevo/", views.ClienteCreateView.as_view(), name="cliente_create"),
     path("clientes/<int:pk>/editar/", views.ClienteUpdateView.as_view(), name="cliente_update"),
