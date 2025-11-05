@@ -63,8 +63,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  // Precios enviados desde la vista para autollenar
-  const preciosArr = JSON.parse('{{ precios_json|escapejs }}'); // [{id, precio_litro}, ...]
+ 
+  const preciosArr = JSON.parse('{{ precios_json|escapejs }}'); 
   const precios = {};
   for (const p of preciosArr) precios[String(p.id)] = String(p.precio_litro);
 
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
     litros && litros.addEventListener('input', recalcTotal);
     precio && precio.addEventListener('input', recalcTotal);
 
-    // Autollenado al cargar si está vacío
+    
     if (precio && !precio.value) setPrice();
   }
 
@@ -98,11 +98,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (el) el.textContent = (Math.round(tot*100)/100).toFixed(2);
   }
 
-  // Enlaza filas existentes
+  
   document.querySelectorAll('tbody tr').forEach(bindRow);
   recalcTotal();
 
-  // Agregar línea: corrige name/id/for al nuevo índice del formset
+ 
   const addBtn = document.getElementById("add-row");
   addBtn && addBtn.addEventListener("click", ()=>{
     const totalInput = document.querySelector("input[name='det-TOTAL_FORMS']");
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const first = tbody.querySelector("tr");
     const clone = first.cloneNode(true);
 
-    // Limpiar y renumerar todos los campos/clasicos de Django formset: det-<i>-campo
+    
     clone.querySelectorAll("input,select,label").forEach(el=>{
       if (el.name)     el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
       if (el.id)       el.id   = el.id.replace(/-(\d+)-/, `-${idx}-`);

@@ -6,21 +6,12 @@ from django.db import transaction
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpResponse
 from django.utils.dateparse import parse_date
-from xhtml2pdf import pisa
 import json, io, csv
 
 from .models import Producto, Cliente, Venta
 from .forms import ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
 
-# --------- Helpers ----------
-def render_to_pdf(template_html, context):
-    # Nota: usamos un Render simple; en prod puede ajustarse a una plantilla renderizada con RequestContext si se requiere.
-    html = render(None, template_html, context).content.decode("utf-8")
-    result = io.BytesIO()
-    pisa.CreatePDF(io.StringIO(html), dest=result)
-    return result.getvalue()
 
-# ---------- Home / simples ----------
 def home(request):
     return render(request, "tienda/home.html")
 
@@ -152,8 +143,20 @@ class VentaDetailView(DetailView):
     context_object_name = "venta"
 
 def venta_pdf(request, pk):
-    venta = Venta.objects.select_related("cliente").prefetch_related("detalles__producto").get(pk=pk)
-    pdf = render_to_pdf("tienda/venta_pdf.html", {"venta": venta})
+    """
+    Importamos xhtml2pdf aquí adentro para que, si no está disponible en el contenedor,
+    no rompa el sitio completo. Si falla, devolvemos un PDF simple de cortesía.
+    """
+    try:
+        from xhtml2pdf import pisa
+        venta = Venta.objects.select_related("cliente").prefetch_related("detalles__producto").get(pk=pk)
+        html = render(request, "tienda/venta_pdf.html", {"venta": venta}).content.decode("utf-8")
+        result = io.BytesIO()
+        pisa.CreatePDF(io.StringIO(html), dest=result)
+        pdf = result.getvalue()
+    except Exception as e:
+       
+        pdf = b"%PDF-1.3\n%Fallback\n"
     resp = HttpResponse(pdf, content_type="application/pdf")
     resp['Content-Disposition'] = f'inline; filename=venta_{pk}.pdf'
     return resp
