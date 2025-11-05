@@ -8,8 +8,11 @@ from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
 import csv, io
 
-from .models import Producto, Cliente, Venta
-from .forms import ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
+from .models import Producto, Cliente, Venta, DetalleVenta
+from .forms import (
+    ProductoForm, ClienteForm,
+    VentaForm, DetalleVentaFormSet
+)
 
 
 def home(request):
@@ -25,7 +28,7 @@ def catalogo(request):
     productos = Producto.objects.filter(activo=True).order_by("nombre")
     return render(request, "tienda/catalogo.html", {"productos": productos})
 
-# -------- Productos --------
+# ---------- PRODUCTOS ----------
 class ProductoListView(ListView):
     model = Producto
     template_name = "tienda/producto_list.html"
@@ -55,9 +58,9 @@ def producto_export_csv(request):
     resp = HttpResponse(content_type="text/csv")
     resp["Content-Disposition"] = "attachment; filename=productos.csv"
     writer = csv.writer(resp)
-    writer.writerow(["nombre", "tipo", "precio_por_litro", "stock", "activo"])
-    for p in Producto.objects.all():
-        writer.writerow([p.nombre, p.tipo, p.precio_por_litro, p.stock, int(p.activo)])
+    writer.writerow(["nombre", "tipo", "precio_litro", "stock_litros", "activo"])
+    for p in Producto.objects.all().order_by("nombre"):
+        writer.writerow([p.nombre, p.tipo, p.precio_litro, p.stock_litros, int(p.activo)])
     return resp
 
 @csrf_protect
@@ -72,6 +75,7 @@ def producto_import_csv(request):
         messages.error(request, "Debes subir un archivo CSV.")
         return redirect("tienda:producto_list")
 
+  
     decoded = file.read().decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(decoded))
 
@@ -82,8 +86,8 @@ def producto_import_csv(request):
             continue
         defaults = {
             "tipo": (row.get("tipo") or "").strip(),
-            "precio_por_litro": row.get("precio_por_litro") or row.get("precio") or 0,
-            "stock": row.get("stock") or 0,
+            "precio_litro": row.get("precio_litro") or row.get("precio") or 0,
+            "stock_litros": row.get("stock_litros") or row.get("stock") or 0,
             "activo": str(row.get("activo") or "1").lower() in ("1", "true", "sí", "si"),
         }
         obj, created = Producto.objects.update_or_create(nombre=nombre, defaults=defaults)
@@ -95,12 +99,7 @@ def producto_import_csv(request):
     messages.success(request, f"Importados {creados} nuevos y actualizados {actualizados}.")
     return redirect("tienda:producto_list")
 
-# --- CLIENTES ---
-from django.views.generic import ListView, CreateView, UpdateView
-from django.urls import reverse_lazy
-from .models import Cliente
-from .forms import ClienteForm
-
+# ---------- CLIENTES ----------
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
@@ -126,7 +125,7 @@ class ClienteUpdateView(UpdateView):
     template_name = "tienda/cliente_form.html"
     success_url = reverse_lazy("tienda:cliente_list")
 
-# -------- Ventas --------
+# ---------- VENTAS ----------
 def venta_crear(request):
     venta = Venta()
     if request.method == "POST":
@@ -136,12 +135,22 @@ def venta_crear(request):
             with transaction.atomic():
                 venta = form.save()
                 formset.instance = venta
-                formset.save()
+                detalles = formset.save(commit=False)
+                # Si precio viene vacío, rellenar con precio_litro del producto
+                for d in detalles:
+                    if not d.precio_unitario:
+                        d.precio_unitario = d.producto.precio_litro
+                    d.save()
+                for obj in formset.deleted_objects:
+                    obj.delete()
             messages.success(request, "Venta registrada correctamente.")
             return redirect("tienda:venta_list")
+        else:
+            messages.error(request, "Revisá los campos del formulario.")
     else:
         form = VentaForm(instance=venta)
         formset = DetalleVentaFormSet(instance=venta, prefix="det")
+
     return render(request, "tienda/venta_form.html", {"form": form, "formset": formset})
 
 class VentaListView(ListView):
@@ -149,20 +158,20 @@ class VentaListView(ListView):
     template_name = "tienda/venta_list.html"
     context_object_name = "ventas"
     paginate_by = 10
+    ordering = "-id"
 
 class VentaDetailView(DetailView):
     model = Venta
     template_name = "tienda/venta_detail.html"
     context_object_name = "venta"
 
-
 def venta_pdf(request, pk):
     venta = get_object_or_404(Venta, pk=pk)
     contenido = (
         f"Comprobante de Venta #{venta.id}\n"
-        f"Fecha: {venta.fecha}\n"
+        f"Fecha: {getattr(venta, 'fecha', '')}\n"
         f"Cliente: {venta.cliente}\n"
-        f"Total: {venta.total}\n"
+        f"Total: {getattr(venta, 'total', '')}\n"
         "\n(Exportación a PDF aún no implementada en producción.)\n"
     )
     return HttpResponse(contenido, content_type="text/plain; charset=utf-8")

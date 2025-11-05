@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Productos{% endblock %}
 {% block content %}
 <h2>Productos</h2>
 
@@ -19,19 +20,28 @@
 
 <a href="{% url 'tienda:producto_create' %}" class="btn btn-success btn-sm">Nuevo</a>
 
-<table>
+<table class="table table-dark table-sm" style="margin-top:12px;">
   <thead>
-    <tr><th>Nombre</th><th>Tipo</th><th>Precio/L</th><th>Stock</th><th>Activo</th></tr>
+    <tr>
+      <th>Nombre</th>
+      <th>Tipo</th>
+      <th>Precio/L</th>
+      <th>Stock (L)</th>
+      <th>Activo</th>
+    </tr>
   </thead>
   <tbody>
-  {% for p in productos %}
+    {% for p in productos %}
     <tr>
-      <td>{{ p.nombre }}</td><td>{{ p.tipo }}</td><td>{{ p.precio_por_litro }}</td>
-      <td>{{ p.stock }}</td><td>{{ p.activo|yesno:"Sí,No" }}</td>
+      <td>{{ p.nombre }}</td>
+      <td>{{ p.get_tipo_display|default:p.tipo }}</td>
+      <td>{{ p.precio_litro }}</td>
+      <td>{{ p.stock_litros }}</td>
+      <td>{{ p.activo|yesno:"Sí,No" }}</td>
     </tr>
-  {% empty %}
+    {% empty %}
     <tr><td colspan="5">Sin productos.</td></tr>
-  {% endfor %}
+    {% endfor %}
   </tbody>
 </table>
 {% endblock %}

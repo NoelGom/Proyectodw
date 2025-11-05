@@ -1,3 +1,4 @@
+# tienda/forms.py
 from django import forms
 from django.forms import inlineformset_factory
 from .models import Producto, Cliente, Venta, DetalleVenta
@@ -5,7 +6,8 @@ from .models import Producto, Cliente, Venta, DetalleVenta
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ["nombre", "tipo", "precio_por_litro", "stock", "activo"]
+        # OJO: estos nombres deben coincidir con tu modelo
+        fields = ["nombre", "tipo", "precio_litro", "stock_litros", "activo"]
 
 class ClienteForm(forms.ModelForm):
     class Meta:
@@ -23,8 +25,10 @@ class DetalleVentaForm(forms.ModelForm):
         fields = ["producto", "litros", "precio_unitario"]
 
 DetalleVentaFormSet = inlineformset_factory(
-    Venta, DetalleVenta,
+    Venta,
+    DetalleVenta,
     form=DetalleVentaForm,
     fields=["producto", "litros", "precio_unitario"],
-    extra=4, can_delete=True,
+    extra=4,
+    can_delete=True,
 )
