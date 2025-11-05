@@ -1,173 +1,101 @@
 {% extends "base.html" %}
-{% load static %}
+{% block title %}Nueva venta{% endblock %}
 
 {% block content %}
 <h2>Nueva venta</h2>
 
-<form method="post" novalidate>
+<form method="post">
   {% csrf_token %}
 
   <fieldset style="margin-bottom:1rem;">
     <legend>Encabezado</legend>
-    {{ venta_form.non_field_errors }}
-    <div>
-      {{ venta_form.cliente.label_tag }} {{ venta_form.cliente }}
-    </div>
+    {{ form.as_p }}
   </fieldset>
 
   <fieldset>
     <legend>Detalles</legend>
-    {{ formset.management_form }}
-    <table id="tabla-detalles" class="table" style="width:100%;max-width:1000px;">
+    <table id="detalles" style="width:100%;max-width:900px;">
       <thead>
         <tr>
-          <th style="width:50%;">Producto</th>
-          <th style="width:12%;">Litros</th>
-          <th style="width:18%;">Precio Unitario</th>
+          <th style="width:55%;">Producto</th>
+          <th style="width:15%;">Litros</th>
+          <th style="width:20%;">Precio Unitario</th>
           <th style="width:10%;">Eliminar</th>
         </tr>
       </thead>
       <tbody>
-        {% for form in formset.forms %}
-        <tr class="detalle-row">
-          <td>
-            {{ form.producto.errors }}
-            {{ form.producto|add_class:"prod-select" }}
-          </td>
-          <td>
-            {{ form.litros.errors }}
-            {{ form.litros|add_class:"litros-input" }}
-          </td>
-          <td>
-            {{ form.precio_unitario.errors }}
-            {{ form.precio_unitario|add_class:"precio-input" }}
-          </td>
-          <td style="text-align:center;">
-            {% if form.instance.pk %}
-              {{ form.DELETE }}
-            {% else %}
-              <input type="checkbox" name="{{ form.prefix }}-DELETE">
-            {% endif %}
-          </td>
-        </tr>
+        {{ formset.management_form }}
+        {% for f in formset %}
+          <tr class="detalle-row">
+            <td>{{ f.producto }}</td>
+            <td>{{ f.litros }}</td>
+            <td>{{ f.precio_unitario }}</td>
+            <td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>
 
-    <button type="button" id="btn-add" class="btn btn-secondary">Agregar línea</button>
+    <button type="button" id="agregar-linea" style="margin-top:8px;">Agregar línea</button>
   </fieldset>
 
-  <div style="margin-top:1rem;font-weight:bold;">
-    Total: Q <span id="label-total">0.00</span>
-  </div>
-
   <div style="margin-top:1rem;">
-    <button type="submit" class="btn btn-primary">Guardar y confirmar</button>
-    <a class="btn btn-light" href="{% url 'tienda:venta_list' %}">Cancelar</a>
+    <button type="submit">Guardar y confirmar</button>
+    <a href="{% url 'tienda:venta_list' %}">Cancelar</a>
   </div>
 </form>
 
-<table style="display:none;">
-  <tbody id="empty-form-row">
-    <tr class="detalle-row">
-      <td>__producto__</td>
-      <td>__litros__</td>
-      <td>__precio__</td>
-      <td style="text-align:center;">__delete__</td>
-    </tr>
-  </tbody>
-</table>
-
 <script>
-
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-}
-
-
-function recalcTotal() {
-  let total = 0;
-  document.querySelectorAll('.detalle-row').forEach(row => {
-    const litros = parseFloat(row.querySelector('.litros-input')?.value || '0');
-    const precio = parseFloat(row.querySelector('.precio-input')?.value || '0');
-    if (!isNaN(litros) && !isNaN(precio)) {
-      total += litros * precio;
-    }
-  });
-  document.getElementById('label-total').textContent = total.toFixed(2);
-}
-
-
-function wireProductToPrice(row) {
-  const select = row.querySelector('.prod-select');
-  const precioInput = row.querySelector('.precio-input');
-  const litrosInput = row.querySelector('.litros-input');
-
-  function updatePriceFromAPI() {
-    const pk = select.value;
-    if (!pk) { precioInput.value = ''; recalcTotal(); return; }
-    fetch(`/api/producto/${pk}/precio/`)
+(function() {
+  function updatePrice(selectEl) {
+    const pk = selectEl.value;
+    if (!pk) return;
+    fetch("{% url 'tienda:api_producto_precio' 1 %}".replace("1","") + pk + "/")
       .then(r => r.json())
       .then(data => {
-        if (precioInput) precioInput.value = (data.precio ?? 0).toFixed(2);
-        recalcTotal();
+        const row = selectEl.closest("tr");
+        const precioInput = row.querySelector("input[name$='-precio_unitario']");
+        if (precioInput && data.precio_por_litro !== undefined) {
+          precioInput.value = data.precio_por_litro;
+        }
       })
-      .catch(() => {
-        
-      });
+      .catch(() => {});
   }
 
-  if (select) select.addEventListener('change', updatePriceFromAPI);
-  if (litrosInput) litrosInput.addEventListener('input', recalcTotal);
-  if (precioInput) precioInput.addEventListener('input', recalcTotal);
 
+  document.querySelectorAll("select[name$='-producto']").forEach(sel => {
+    sel.addEventListener("change", () => updatePrice(sel));
 
-  if (select && select.value) updatePriceFromAPI();
-}
-
-
-document.querySelectorAll('.detalle-row').forEach(wireProductToPrice);
-
-
-const btnAdd = document.getElementById('btn-add');
-btnAdd?.addEventListener('click', () => {
-  const totalForms = document.getElementById('id_det-TOTAL_FORMS');
-  const formIndex = parseInt(totalForms.value, 10);
-
-
-  const firstRow = document.querySelector('.detalle-row');
-  if (!firstRow) return;
-
-  const newRow = firstRow.cloneNode(true);
-
-  newRow.querySelectorAll('input').forEach(inp => {
-    if (inp.name.endsWith('-DELETE')) {
-      inp.checked = false;
-    } else {
-      inp.value = '';
-    }
- 
-    inp.name = inp.name.replace(/det-\d+-/, `det-${formIndex}-`);
-    if (inp.id) inp.id = inp.id.replace(/det-\d+-/, `det-${formIndex}-`);
-  });
-  newRow.querySelectorAll('select').forEach(sel => {
-    sel.selectedIndex = 0;
-    sel.name = sel.name.replace(/det-\d+-/, `det-${formIndex}-`);
-    if (sel.id) sel.id = sel.id.replace(/det-\d+-/, `det-${formIndex}-`);
+    if (sel.value) updatePrice(sel);
   });
 
- 
-  document.querySelector('#tabla-detalles tbody').appendChild(newRow);
-  totalForms.value = formIndex + 1;
+  
+  const btnAdd = document.getElementById("agregar-linea");
+  btnAdd?.addEventListener("click", () => {
+    const tbody = document.querySelector("#detalles tbody");
+    const totalForms = document.querySelector("input[name='det-TOTAL_FORMS']");
+    const formIdx = parseInt(totalForms.value, 10);
+    const lastRow = tbody.querySelector("tr.detalle-row:last-child");
+    const newRow = lastRow.cloneNode(true);
 
-  wireProductToPrice(newRow);
-  recalcTotal();
-});
 
+    newRow.querySelectorAll("input, select").forEach(el => {
+      ["name","id"].forEach(attr => {
+        if (el.hasAttribute(attr)) {
+          el.setAttribute(attr, el.getAttribute(attr).replace(/det-\d+-/g, "det-" + formIdx + "-"));
+        }
+      });
+      if (el.tagName === "SELECT") el.value = "";
+      else if (el.type === "number" || el.type === "text") el.value = "";
+    });
 
-recalcTotal();
+    tbody.appendChild(newRow);
+    totalForms.value = formIdx + 1;
+
+  
+    const prodSel = newRow.querySelector("select[name$='-producto']");
+    prodSel.addEventListener("change", () => updatePrice(prodSel));
+  });
+})();
 </script>
-
 {% endblock %}

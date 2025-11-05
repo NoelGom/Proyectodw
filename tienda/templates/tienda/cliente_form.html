@@ -1,16 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Cliente{% endblock %}
+
 {% block content %}
-<h1>{{ form.instance.pk|yesno:"Editar cliente,Nuevo cliente" }}</h1>
+<h2>{{ form.instance.pk|yesno:"Editar cliente,Nuevo cliente" }}</h2>
 
-<form method="post" novalidate>
+<form method="post">
   {% csrf_token %}
-  {{ form.non_field_errors }}
   {{ form.as_p }}
-
-  <div style="margin-top:10px;">
-    <button class="btn btn-primary" type="submit">Guardar</button>
-    <a class="btn btn-secondary" href="{% url 'tienda:cliente_list' %}">Cancelar</a>
-  </div>
+  <button type="submit">Guardar</button>
+  <a href="{% url 'tienda:cliente_list' %}">Cancelar</a>
 </form>
 {% endblock %}

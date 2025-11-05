@@ -1,58 +1,37 @@
 {% extends "base.html" %}
 {% block title %}Clientes{% endblock %}
+
 {% block content %}
-<h1>Clientes</h1>
+<h2>Clientes</h2>
 
 <form method="get" class="mb-3">
-  <input type="text" name="q" placeholder="Buscar..." value="{{ request.GET.q }}">
-  <button type="submit" class="btn btn-success btn-sm">Buscar</button>
-  <a class="btn btn-success btn-sm" href="{% url 'tienda:cliente_create' %}">Nuevo</a>
+  <div>
+    <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Buscar...">
+    <button type="submit">Buscar</button>
+    <a href="{% url 'tienda:cliente_crear' %}">Nuevo</a>
+  </div>
 </form>
 
-<table class="table table-dark table-sm">
+<table>
   <thead>
     <tr>
       <th>Nombre</th>
-      {% if clientes and clientes.0.telefono is not None %}
       <th>Teléfono</th>
-      {% endif %}
-      {% if clientes and clientes.0.nit is not None %}
       <th>NIT</th>
-      {% endif %}
       <th></th>
     </tr>
   </thead>
   <tbody>
     {% for c in clientes %}
-    <tr>
-      <td>
-        {% if c.nombre %}{{ c.nombre }}
-        {% else %}{{ c.nombres }} {{ c.apellidos }}
-        {% endif %}
-      </td>
-      {% if c.telefono is not None %}
-      <td>{{ c.telefono|default:"-" }}</td>
-      {% endif %}
-      {% if c.nit is not None %}
-      <td>{{ c.nit|default:"CF" }}</td>
-      {% endif %}
-      <td><a href="{% url 'tienda:cliente_update' c.pk %}">Editar</a></td>
-    </tr>
+      <tr>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.nit }}</td>
+        <td><a href="{% url 'tienda:cliente_editar' c.pk %}">Editar</a></td>
+      </tr>
     {% empty %}
-    <tr><td colspan="4">Sin clientes.</td></tr>
+      <tr><td colspan="4">Sin clientes.</td></tr>
     {% endfor %}
   </tbody>
 </table>
-
-{% if is_paginated %}
-<div>
-  {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Anterior</a>
-  {% endif %}
-  <span>Página {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Siguiente</a>
-  {% endif %}
-</div>
-{% endif %}
 {% endblock %}
