@@ -1,133 +1,173 @@
 {% extends "base.html" %}
-{% block title %}Nueva venta{% endblock %}
+{% load static %}
+
 {% block content %}
-<h1>Nueva venta</h1>
-<form method="post">{% csrf_token %}
-  <fieldset class="mb-3">
+<h2>Nueva venta</h2>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+
+  <fieldset style="margin-bottom:1rem;">
     <legend>Encabezado</legend>
-    {{ form.as_p }}
+    {{ venta_form.non_field_errors }}
+    <div>
+      {{ venta_form.cliente.label_tag }} {{ venta_form.cliente }}
+    </div>
   </fieldset>
 
-  <fieldset class="mb-3">
+  <fieldset>
     <legend>Detalles</legend>
     {{ formset.management_form }}
-    <table class="table table-dark table-sm align-middle">
+    <table id="tabla-detalles" class="table" style="width:100%;max-width:1000px;">
       <thead>
-        <tr><th>Producto</th><th>Litros</th><th>Precio Unitario</th><th>Eliminar</th></tr>
+        <tr>
+          <th style="width:50%;">Producto</th>
+          <th style="width:12%;">Litros</th>
+          <th style="width:18%;">Precio Unitario</th>
+          <th style="width:10%;">Eliminar</th>
+        </tr>
       </thead>
       <tbody>
-        {% for f in formset %}
-          <tr>
-            <td>{{ f.producto }}</td>
-            <td>{{ f.litros }}</td>
-            <td>{{ f.precio_unitario }}</td>
-            <td>{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
-          </tr>
+        {% for form in formset.forms %}
+        <tr class="detalle-row">
+          <td>
+            {{ form.producto.errors }}
+            {{ form.producto|add_class:"prod-select" }}
+          </td>
+          <td>
+            {{ form.litros.errors }}
+            {{ form.litros|add_class:"litros-input" }}
+          </td>
+          <td>
+            {{ form.precio_unitario.errors }}
+            {{ form.precio_unitario|add_class:"precio-input" }}
+          </td>
+          <td style="text-align:center;">
+            {% if form.instance.pk %}
+              {{ form.DELETE }}
+            {% else %}
+              <input type="checkbox" name="{{ form.prefix }}-DELETE">
+            {% endif %}
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
 
-    <button type="button" id="add-row" class="btn btn-outline-info btn-sm">Agregar línea</button>
+    <button type="button" id="btn-add" class="btn btn-secondary">Agregar línea</button>
   </fieldset>
 
-  {# --- ERRORES VISIBLES --- #}
-  {% if form.errors or form.non_field_errors %}
-    <div class="alert alert-danger mt-3">
-      {{ form.non_field_errors }}
-      {{ form.errors }}
-    </div>
-  {% endif %}
+  <div style="margin-top:1rem;font-weight:bold;">
+    Total: Q <span id="label-total">0.00</span>
+  </div>
 
-  {% for f in formset.forms %}
-    {% if f.errors or f.non_field_errors %}
-      <div class="alert alert-danger mt-2">
-        {{ f.non_field_errors }}
-        {{ f.errors }}
-      </div>
-    {% endif %}
-  {% endfor %}
-
-  {% if formset.non_form_errors %}
-    <div class="alert alert-danger mt-2">
-      {{ formset.non_form_errors }}
-    </div>
-  {% endif %}
-
-  <h4 class="mt-3">Total: Q <span id="total-live">0.00</span></h4>
-
-  <div class="d-flex gap-2 mt-3">
-    <button type="submit" class="btn btn-success">Guardar y confirmar</button>
-    <a class="btn btn-outline-light" href="{% url 'tienda:venta_list' %}">Cancelar</a>
+  <div style="margin-top:1rem;">
+    <button type="submit" class="btn btn-primary">Guardar y confirmar</button>
+    <a class="btn btn-light" href="{% url 'tienda:venta_list' %}">Cancelar</a>
   </div>
 </form>
 
+<table style="display:none;">
+  <tbody id="empty-form-row">
+    <tr class="detalle-row">
+      <td>__producto__</td>
+      <td>__litros__</td>
+      <td>__precio__</td>
+      <td style="text-align:center;">__delete__</td>
+    </tr>
+  </tbody>
+</table>
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
- 
-  const preciosArr = JSON.parse('{{ precios_json|escapejs }}'); 
-  const precios = {};
-  for (const p of preciosArr) precios[String(p.id)] = String(p.precio_litro);
 
-  function bindRow(row){
-    const sel = row.querySelector("select[name$='-producto']");
-    const litros = row.querySelector("input[name$='-litros']");
-    const precio = row.querySelector("input[name$='-precio_unitario']");
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
 
-    const setPrice = () => {
-      const pid = sel?.value;
-      if (pid && precios[pid] && precio) precio.value = precios[pid];
-      recalcTotal();
-    };
 
-    sel && sel.addEventListener('change', setPrice);
-    litros && litros.addEventListener('input', recalcTotal);
-    precio && precio.addEventListener('input', recalcTotal);
-
-    
-    if (precio && !precio.value) setPrice();
-  }
-
-  function recalcTotal(){
-    let tot = 0;
-    document.querySelectorAll("tbody tr").forEach(tr=>{
-      const l = parseFloat(tr.querySelector("input[name$='-litros']")?.value || 0);
-      const p = parseFloat(tr.querySelector("input[name$='-precio_unitario']")?.value || 0);
-      tot += l*p;
-    });
-    const el = document.getElementById("total-live");
-    if (el) el.textContent = (Math.round(tot*100)/100).toFixed(2);
-  }
-
-  
-  document.querySelectorAll('tbody tr').forEach(bindRow);
-  recalcTotal();
-
- 
-  const addBtn = document.getElementById("add-row");
-  addBtn && addBtn.addEventListener("click", ()=>{
-    const totalInput = document.querySelector("input[name='det-TOTAL_FORMS']");
-    const idx = parseInt(totalInput.value,10);
-    const tbody = document.querySelector("tbody");
-    const first = tbody.querySelector("tr");
-    const clone = first.cloneNode(true);
-
-    
-    clone.querySelectorAll("input,select,label").forEach(el=>{
-      if (el.name)     el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
-      if (el.id)       el.id   = el.id.replace(/-(\d+)-/, `-${idx}-`);
-      if (el.htmlFor)  el.htmlFor = el.htmlFor.replace(/-(\d+)-/, `-${idx}-`);
-
-      if (el.tagName === "INPUT") {
-        if (el.type === "checkbox" || el.type === "radio") el.checked = false;
-        else el.value = "";
-      }
-      if (el.tagName === "SELECT") el.selectedIndex = 0;
-    });
-
-    tbody.appendChild(clone);
-    totalInput.value = idx + 1;
-    bindRow(clone);
+function recalcTotal() {
+  let total = 0;
+  document.querySelectorAll('.detalle-row').forEach(row => {
+    const litros = parseFloat(row.querySelector('.litros-input')?.value || '0');
+    const precio = parseFloat(row.querySelector('.precio-input')?.value || '0');
+    if (!isNaN(litros) && !isNaN(precio)) {
+      total += litros * precio;
+    }
   });
+  document.getElementById('label-total').textContent = total.toFixed(2);
+}
+
+
+function wireProductToPrice(row) {
+  const select = row.querySelector('.prod-select');
+  const precioInput = row.querySelector('.precio-input');
+  const litrosInput = row.querySelector('.litros-input');
+
+  function updatePriceFromAPI() {
+    const pk = select.value;
+    if (!pk) { precioInput.value = ''; recalcTotal(); return; }
+    fetch(`/api/producto/${pk}/precio/`)
+      .then(r => r.json())
+      .then(data => {
+        if (precioInput) precioInput.value = (data.precio ?? 0).toFixed(2);
+        recalcTotal();
+      })
+      .catch(() => {
+        
+      });
+  }
+
+  if (select) select.addEventListener('change', updatePriceFromAPI);
+  if (litrosInput) litrosInput.addEventListener('input', recalcTotal);
+  if (precioInput) precioInput.addEventListener('input', recalcTotal);
+
+
+  if (select && select.value) updatePriceFromAPI();
+}
+
+
+document.querySelectorAll('.detalle-row').forEach(wireProductToPrice);
+
+
+const btnAdd = document.getElementById('btn-add');
+btnAdd?.addEventListener('click', () => {
+  const totalForms = document.getElementById('id_det-TOTAL_FORMS');
+  const formIndex = parseInt(totalForms.value, 10);
+
+
+  const firstRow = document.querySelector('.detalle-row');
+  if (!firstRow) return;
+
+  const newRow = firstRow.cloneNode(true);
+
+  newRow.querySelectorAll('input').forEach(inp => {
+    if (inp.name.endsWith('-DELETE')) {
+      inp.checked = false;
+    } else {
+      inp.value = '';
+    }
+ 
+    inp.name = inp.name.replace(/det-\d+-/, `det-${formIndex}-`);
+    if (inp.id) inp.id = inp.id.replace(/det-\d+-/, `det-${formIndex}-`);
+  });
+  newRow.querySelectorAll('select').forEach(sel => {
+    sel.selectedIndex = 0;
+    sel.name = sel.name.replace(/det-\d+-/, `det-${formIndex}-`);
+    if (sel.id) sel.id = sel.id.replace(/det-\d+-/, `det-${formIndex}-`);
+  });
+
+ 
+  document.querySelector('#tabla-detalles tbody').appendChild(newRow);
+  totalForms.value = formIndex + 1;
+
+  wireProductToPrice(newRow);
+  recalcTotal();
 });
+
+
+recalcTotal();
 </script>
+
 {% endblock %}

@@ -1,201 +1,130 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView, DetailView
-from django.contrib import messages
+from decimal import Decimal
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.generic import ListView
 from django.db import transaction
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_protect
-from django.contrib.auth.decorators import login_required
-import csv, io
 
 from .models import Producto, Cliente, Venta, DetalleVenta
 from .forms import (
-    ProductoForm, ClienteForm,
-    VentaForm, DetalleVentaFormSet
+    ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
 )
 
-def _has(model, field_name: str) -> bool:
-    return field_name in {f.name for f in model._meta.get_fields()}
-
-def _cliente_nombre_lookup():
-    """Devuelve el campo principal para buscar/ordenar clientes."""
-    if _has(Cliente, "nombre"):
-        return "nombre"
-    elif _has(Cliente, "nombres"):
-        return "nombres"
-  
-    for f in Cliente._meta.get_fields():
-        if getattr(getattr(f, "get_internal_type", lambda: "")(), "") == "CharField":
-            return f.name
-    return "id"
-
-def _cliente_label(c):
-    """Devuelve un nombre legible del cliente para la UI."""
-    if hasattr(c, "nombre") and c.nombre:
-        return c.nombre
-    nombres = getattr(c, "nombres", "") or ""
-    apellidos = getattr(c, "apellidos", "") or ""
-    full = f"{nombres} {apellidos}".strip()
-    return full or str(c)
-
-
-def home(request):
-    return render(request, "tienda/home.html")
-
-def carrito(request):
-    return render(request, "tienda/carrito.html")
-
-def checkout(request):
-    return render(request, "tienda/checkout.html")
-
-def catalogo(request):
-    productos = Producto.objects.filter(activo=True).order_by("nombre")
-    return render(request, "tienda/catalogo.html", {"productos": productos})
-
-# ------------------ Productos ------------------
 class ProductoListView(ListView):
     model = Producto
     template_name = "tienda/producto_list.html"
     context_object_name = "productos"
-    paginate_by = 10
 
-    def get_queryset(self):
-        q = self.request.GET.get("q", "").strip()
-        qs = Producto.objects.all().order_by("nombre")
-        if q:
-            qs = qs.filter(nombre__icontains=q)
-        return qs
-
-class ProductoCreateView(CreateView):
-    model = Producto
-    form_class = ProductoForm
-    template_name = "tienda/producto_form.html"
-    success_url = reverse_lazy("tienda:producto_list")
-
-class ProductoUpdateView(UpdateView):
-    model = Producto
-    form_class = ProductoForm
-    template_name = "tienda/producto_form.html"
-    success_url = reverse_lazy("tienda:producto_list")
-
-def producto_export_csv(request):
-    resp = HttpResponse(content_type="text/csv")
-    resp["Content-Disposition"] = "attachment; filename=productos.csv"
-    writer = csv.writer(resp)
-    
-    writer.writerow(["nombre", "tipo", "precio_litro", "stock_litros", "activo"])
-    for p in Producto.objects.all().order_by("nombre"):
-        writer.writerow([p.nombre, p.tipo, p.precio_litro, p.stock_litros, int(p.activo)])
-    return resp
-
-@csrf_protect
-@login_required
-def producto_import_csv(request):
-    if request.method != "POST":
-        messages.error(request, "Método no permitido.")
-        return redirect("tienda:producto_list")
-
-    file = request.FILES.get("file")
-    if not file:
-        messages.error(request, "Debes subir un archivo CSV.")
-        return redirect("tienda:producto_list")
-
-    decoded = file.read().decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(decoded))
-
-    creados, actualizados = 0, 0
-    for row in reader:
-        nombre = (row.get("nombre") or row.get("Nombre") or "").strip()
-        if not nombre:
-            continue
-        defaults = {
-            "tipo": (row.get("tipo") or "").strip(),
-            "precio_litro": row.get("precio_litro") or row.get("precio") or 0,
-            "stock_litros": row.get("stock_litros") or row.get("stock") or 0,
-            "activo": str(row.get("activo") or "1").lower() in ("1", "true", "sí", "si"),
-        }
-        obj, created = Producto.objects.update_or_create(nombre=nombre, defaults=defaults)
-        if created:
-            creados += 1
-        else:
-            actualizados += 1
-
-    messages.success(request, f"Importados {creados} nuevos y actualizados {actualizados}.")
-    return redirect("tienda:producto_list")
-
-# ------------------ Clientes ------------------
 class ClienteListView(ListView):
     model = Cliente
     template_name = "tienda/cliente_list.html"
     context_object_name = "clientes"
-    paginate_by = 10
-
-    def get_queryset(self):
-        name_field = _cliente_nombre_lookup()
-        q = self.request.GET.get("q", "").strip()
-        qs = Cliente.objects.all().order_by(name_field)
-        if q:
-            qs = qs.filter(**{f"{name_field}__icontains": q})
-        return qs
-
-class ClienteCreateView(CreateView):
-    model = Cliente
-    form_class = ClienteForm
-    template_name = "tienda/cliente_form.html"
-    success_url = reverse_lazy("tienda:cliente_list")
-
-class ClienteUpdateView(UpdateView):
-    model = Cliente
-    form_class = ClienteForm
-    template_name = "tienda/cliente_form.html"
-    success_url = reverse_lazy("tienda:cliente_list")
-
-# ------------------ Ventas ------------------
-def venta_crear(request):
-    venta = Venta()
-    if request.method == "POST":
-        form = VentaForm(request.POST, instance=venta)
-        formset = DetalleVentaFormSet(request.POST, instance=venta, prefix="det")
-        if form.is_valid() and formset.is_valid():
-            with transaction.atomic():
-                venta = form.save()
-                formset.instance = venta
-                detalles = formset.save(commit=False)
-                for d in detalles:
-                    if hasattr(d, "precio_unitario") and (d.precio_unitario is None or d.precio_unitario == ""):
-                        d.precio_unitario = getattr(d.producto, "precio_litro", 0)
-                    d.save()
-                for obj in formset.deleted_objects:
-                    obj.delete()
-            messages.success(request, "Venta registrada correctamente.")
-            return redirect("tienda:venta_list")
-        else:
-            messages.error(request, "Revisá los campos del formulario.")
-    else:
-        form = VentaForm(instance=venta)
-        formset = DetalleVentaFormSet(instance=venta, prefix="det")
-
-    return render(request, "tienda/venta_form.html", {"form": form, "formset": formset})
 
 class VentaListView(ListView):
     model = Venta
     template_name = "tienda/venta_list.html"
     context_object_name = "ventas"
-    paginate_by = 10
-    ordering = "-id"
 
-class VentaDetailView(DetailView):
-    model = Venta
-    template_name = "tienda/venta_detail.html"
-    context_object_name = "venta"
+
+def producto_crear(request):
+    form = ProductoForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("tienda:producto_list")
+    return render(request, "tienda/producto_form.html", {"form": form})
+
+def producto_editar(request, pk):
+    obj = get_object_or_404(Producto, pk=pk)
+    form = ProductoForm(request.POST or None, instance=obj)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("tienda:producto_list")
+    return render(request, "tienda/producto_form.html", {"form": form})
+
+def cliente_crear(request):
+    form = ClienteForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("tienda:cliente_list")
+    return render(request, "tienda/cliente_form.html", {"form": form})
+
+def cliente_editar(request, pk):
+    obj = get_object_or_404(Cliente, pk=pk)
+    form = ClienteForm(request.POST or None, instance=obj)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("tienda:cliente_list")
+    return render(request, "tienda/cliente_form.html", {"form": form})
+
+
+@transaction.atomic
+def venta_crear(request):
+    venta_form = VentaForm(request.POST or None)
+    formset = DetalleVentaFormSet(request.POST or None, prefix="det")
+
+    if request.method == "POST":
+        if venta_form.is_valid() and formset.is_valid():
+            venta = venta_form.save()
+            dets = formset.save(commit=False)
+            for d in dets:
+                d.venta = venta
+             
+                if not d.precio_unitario:
+                    p = d.producto
+                    precio = (
+                        getattr(p, "precio_litro", None)
+                        or getattr(p, "precio_por_litro", None)
+                        or getattr(p, "precio", None)
+                        or getattr(p, "precio_unitario", None)
+                        or Decimal("0")
+                    )
+                    d.precio_unitario = precio
+                d.save()
+            for d in formset.deleted_objects:
+                d.delete()
+            return redirect("tienda:venta_list")
+
+    return render(
+        request,
+        "tienda/venta_form.html",
+        {"venta_form": venta_form, "formset": formset},
+    )
 
 def venta_pdf(request, pk):
+   
     venta = get_object_or_404(Venta, pk=pk)
-    contenido = (
-        f"Comprobante de Venta #{venta.id}\n"
-        f"Fecha: {getattr(venta, 'fecha', '')}\n"
-        f"Cliente: {venta.cliente}\n"
-        f"Total: {getattr(venta, 'total', '')}\n"
-        "\n(Exportación a PDF aún no implementada en producción.)\n"
+    return HttpResponse(f"PDF de venta #{venta.id}", content_type="text/plain")
+
+
+def catalogo(request):
+    productos = Producto.objects.all()
+    return render(request, "tienda/catalogo.html", {"productos": productos})
+
+
+def producto_export_csv(request):
+
+    return HttpResponse("OK", content_type="text/plain")
+
+def producto_import_csv(request):
+  
+    return HttpResponse("OK", content_type="text/plain")
+
+
+def api_producto_precio(request, pk):
+    """
+    Devuelve {precio: <decimal>} para el producto PK.
+    Toma cualquiera de los posibles nombres: precio_litro, precio_por_litro,
+    precio, precio_unitario (soporta tus variantes).
+    """
+    prod = get_object_or_404(Producto, pk=pk)
+
+    precio = (
+        getattr(prod, "precio_litro", None)
+        or getattr(prod, "precio_por_litro", None)
+        or getattr(prod, "precio", None)
+        or getattr(prod, "precio_unitario", None)
+        or Decimal("0")
     )
-    return HttpResponse(contenido, content_type="text/plain; charset=utf-8")
+
+  
+    return JsonResponse({"precio": float(precio)})
