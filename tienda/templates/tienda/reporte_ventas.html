@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Reporte Ventas{% endblock %}
+{% block content %}
+<h1>Reporte de ventas</h1>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto"><input type="date" name="desde" value="{{ desde|date:'Y-m-d' }}" class="form-control"></div>
+  <div class="col-auto"><input type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}" class="form-control"></div>
+  <div class="col-auto"><button class="btn btn-outline-light">Filtrar</button></div>
+  <div class="col-auto">
+    <a class="btn btn-success" href="?{% if desde %}desde={{ desde|date:'Y-m-d' }}&{% endif %}{% if hasta %}hasta={{ hasta|date:'Y-m-d' }}&{% endif %}csv=1">Exportar CSV</a>
+  </div>
+</form>
+<table class="table table-dark table-sm">
+  <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th></tr></thead>
+  <tbody>
+    {% for v in ventas %}
+    <tr><td>{{ v.id }}</td><td>{{ v.fecha|date:"Y-m-d H:i" }}</td><td>{{ v.cliente }}</td><td>Q {{ v.total }}</td></tr>
+    {% empty %}<tr><td colspan="4">Sin resultados</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

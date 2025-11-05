@@ -5,16 +5,19 @@
 <p><strong>Fecha:</strong> {{ venta.fecha|date:"Y-m-d H:i" }}<br>
 <strong>Cliente:</strong> {{ venta.cliente }}<br>
 <strong>Total:</strong> Q {{ venta.total }}</p>
-
 <table class="table table-dark table-sm">
   <thead><tr><th>Producto</th><th>Litros</th><th>P. Unitario</th><th>Subtotal</th></tr></thead>
   <tbody>
-  {% for d in venta.detalles.all %}
+    {% for d in venta.detalles.all %}
     <tr>
-      <td>{{ d.producto }}</td><td>{{ d.litros }}</td><td>Q {{ d.precio_unitario }}</td><td>Q {{ d.subtotal }}</td>
+      <td>{{ d.producto }}</td>
+      <td>{{ d.litros }}</td>
+      <td>Q {{ d.precio_unitario }}</td>
+      <td>Q {{ d.subtotal }}</td>
     </tr>
-  {% endfor %}
+    {% endfor %}
   </tbody>
 </table>
 <a class="btn btn-outline-light" href="{% url 'tienda:venta_list' %}">Volver</a>
+<a class="btn btn-success" href="{% url 'tienda:venta_pdf' venta.pk %}">Descargar PDF</a>
 {% endblock %}

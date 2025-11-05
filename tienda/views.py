@@ -1,17 +1,33 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 from django.core.serializers.json import DjangoJSONEncoder
-import json
+from django.http import HttpResponse
+from django.utils.dateparse import parse_date
+from django.contrib.auth import logout
+from django.views.decorators.http import require_http_methods
+from xhtml2pdf import pisa
+import json, io, csv
 
 from .models import Producto, Cliente, Venta
 from .forms import ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
 
-# ---------- Home / simples ----------
+
+class SoloStaff(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_staff
+
+def render_to_pdf(template_html, context):
+    html = render(None, template_html, context).content.decode("utf-8")
+    result = io.BytesIO()
+    pisa.CreatePDF(io.StringIO(html), dest=result)
+    return result.getvalue()
+
+
 def home(request):
     return render(request, "tienda/home.html")
 
@@ -38,17 +54,48 @@ class ProductoListView(LoginRequiredMixin, ListView):
             qs = qs.filter(nombre__icontains=q)
         return qs
 
-class ProductoCreateView(LoginRequiredMixin, CreateView):
+class ProductoCreateView(SoloStaff, LoginRequiredMixin, CreateView):
     model = Producto
     form_class = ProductoForm
     template_name = "tienda/producto_form.html"
     success_url = reverse_lazy("tienda:producto_list")
 
-class ProductoUpdateView(LoginRequiredMixin, UpdateView):
+class ProductoUpdateView(SoloStaff, LoginRequiredMixin, UpdateView):
     model = Producto
     form_class = ProductoForm
     template_name = "tienda/producto_form.html"
     success_url = reverse_lazy("tienda:producto_list")
+
+@login_required
+def producto_export_csv(request):
+    resp = HttpResponse(content_type="text/csv")
+    resp["Content-Disposition"] = "attachment; filename=productos.csv"
+    w = csv.writer(resp)
+    w.writerow(["Nombre","Tipo","PrecioLitro","Stock","Activo"])
+    for p in Producto.objects.all().order_by("nombre"):
+        w.writerow([p.nombre, p.tipo, p.precio_litro, p.stock_litros, "1" if p.activo else "0"])
+    return resp
+
+@login_required
+def producto_import_csv(request):
+    if request.method == "POST" and request.FILES.get("archivo"):
+        f = io.TextIOWrapper(request.FILES["archivo"].file, encoding="utf-8")
+        reader = csv.DictReader(f)
+        count = 0
+        for row in reader:
+            Producto.objects.update_or_create(
+                nombre=row["Nombre"].strip(),
+                defaults={
+                    "tipo": row.get("Tipo","jabon"),
+                    "precio_litro": row.get("PrecioLitro", 0) or 0,
+                    "stock_litros": row.get("Stock", 0) or 0,
+                    "activo": row.get("Activo","1") in ("1","true","True"),
+                }
+            )
+            count += 1
+        messages.success(request, f"Importados {count} productos.")
+        return redirect("tienda:producto_list")
+    return render(request, "tienda/producto_import.html")
 
 # ---------- Clientes ----------
 class ClienteListView(LoginRequiredMixin, ListView):
@@ -57,7 +104,7 @@ class ClienteListView(LoginRequiredMixin, ListView):
     context_object_name = "clientes"
     paginate_by = 10
     def get_queryset(self):
-        qs = Cliente.objects.all().order_by("apellidos", "nombres")
+        qs = Cliente.objects.all().order_by("apellidos","nombres")
         q = self.request.GET.get("q", "").strip()
         if q:
             qs = qs.filter(nombres__icontains=q) | qs.filter(apellidos__icontains=q)
@@ -78,12 +125,7 @@ class ClienteUpdateView(LoginRequiredMixin, UpdateView):
 # ---------- Ventas ----------
 @login_required
 def venta_crear(request):
-    # Prepara un JSON { id: precio_litro } para autocompletar precios en el template
-    precios_json = json.dumps(
-        list(Producto.objects.values("id", "precio_litro")),
-        cls=DjangoJSONEncoder
-    )
-
+    precios_json = json.dumps(list(Producto.objects.values("id","precio_litro")), cls=DjangoJSONEncoder)
     venta = Venta()
     if request.method == "POST":
         form = VentaForm(request.POST, instance=venta)
@@ -98,22 +140,14 @@ def venta_crear(request):
                 except ValueError as e:
                     transaction.set_rollback(True)
                     messages.error(request, str(e))
-                    return render(
-                        request,
-                        "tienda/venta_form.html",
-                        {"form": form, "formset": formset, "precios_json": precios_json},
-                    )
+                    return render(request, "tienda/venta_form.html", {"form": form, "formset": formset, "precios_json": precios_json})
             messages.success(request, "Venta registrada correctamente.")
             return redirect("tienda:venta_detail", pk=venta.pk)
     else:
         form = VentaForm(instance=venta)
         formset = DetalleVentaFormSet(instance=venta, prefix="det")
 
-    return render(
-        request,
-        "tienda/venta_form.html",
-        {"form": form, "formset": formset, "precios_json": precios_json},
-    )
+    return render(request, "tienda/venta_form.html", {"form": form, "formset": formset, "precios_json": precios_json})
 
 class VentaListView(LoginRequiredMixin, ListView):
     model = Venta
@@ -125,3 +159,33 @@ class VentaDetailView(LoginRequiredMixin, DetailView):
     model = Venta
     template_name = "tienda/venta_detail.html"
     context_object_name = "venta"
+
+@login_required
+def venta_pdf(request, pk):
+    venta = Venta.objects.select_related("cliente").prefetch_related("detalles__producto").get(pk=pk)
+    pdf = render_to_pdf("tienda/venta_pdf.html", {"venta": venta})
+    resp = HttpResponse(pdf, content_type="application/pdf")
+    resp['Content-Disposition'] = f'inline; filename=venta_{pk}.pdf'
+    return resp
+
+@login_required
+def reporte_ventas(request):
+    f1 = parse_date(request.GET.get("desde","") or "")
+    f2 = parse_date(request.GET.get("hasta","") or "")
+    qs = Venta.objects.select_related("cliente").all()
+    if f1: qs = qs.filter(fecha__date__gte=f1)
+    if f2: qs = qs.filter(fecha__date__lte=f2)
+    if request.GET.get("csv")=="1":
+        resp = HttpResponse(content_type="text/csv")
+        resp["Content-Disposition"]="attachment; filename=reporte_ventas.csv"
+        w = csv.writer(resp); w.writerow(["ID","Fecha","Cliente","Total"])
+        for v in qs: w.writerow([v.id, v.fecha.strftime("%Y-%m-%d %H:%M"), str(v.cliente), f"{v.total}"])
+        return resp
+    return render(request,"tienda/reporte_ventas.html",{"ventas":qs, "desde":f1, "hasta":f2})
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def logout_view(request):
+    """Permite logout tanto por GET como POST."""
+    logout(request)
+    return redirect("login")

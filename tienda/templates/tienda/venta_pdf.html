@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; }
+    h1 { font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #444; padding: 4px; }
+    th { background: #eee; }
+    .right { text-align: right; }
+  </style>
+</head>
+<body>
+  <h1>Comprobante de Venta #{{ venta.id }}</h1>
+  <p><strong>Fecha:</strong> {{ venta.fecha|date:"Y-m-d H:i" }}<br>
+     <strong>Cliente:</strong> {{ venta.cliente }}</p>
+  <table>
+    <thead><tr><th>Producto</th><th>Litros</th><th>P. Unitario</th><th>Subtotal</th></tr></thead>
+    <tbody>
+      {% for d in venta.detalles.all %}
+      <tr>
+        <td>{{ d.producto }}</td>
+        <td class="right">{{ d.litros }}</td>
+        <td class="right">Q {{ d.precio_unitario }}</td>
+        <td class="right">Q {{ d.subtotal }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td colspan="3" class="right"><strong>Total</strong></td>
+        <td class="right"><strong>Q {{ venta.total }}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

@@ -10,10 +10,15 @@
   <tbody>
     {% for v in ventas %}
     <tr>
-      <td>{{ v.id }}</td><td>{{ v.fecha|date:"Y-m-d H:i" }}</td><td>{{ v.cliente }}</td><td>Q {{ v.total }}</td>
+      <td>{{ v.id }}</td>
+      <td>{{ v.fecha|date:"Y-m-d H:i" }}</td>
+      <td>{{ v.cliente }}</td>
+      <td>Q {{ v.total }}</td>
       <td><a class="btn btn-sm btn-secondary" href="{% url 'tienda:venta_detail' v.pk %}">Ver</a></td>
     </tr>
-    {% empty %}<tr><td colspan="5">Sin ventas.</td></tr>{% endfor %}
+    {% empty %}
+    <tr><td colspan="5">Sin ventas.</td></tr>
+    {% endfor %}
   </tbody>
 </table>
 {% endblock %}

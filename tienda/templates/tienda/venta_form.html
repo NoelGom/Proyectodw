@@ -26,39 +26,108 @@
         {% endfor %}
       </tbody>
     </table>
+
+    <button type="button" id="add-row" class="btn btn-outline-info btn-sm">Agregar línea</button>
   </fieldset>
 
-  <div class="d-flex gap-2">
-    <button class="btn btn-success">Guardar y confirmar</button>
+  {# --- ERRORES VISIBLES --- #}
+  {% if form.errors or form.non_field_errors %}
+    <div class="alert alert-danger mt-3">
+      {{ form.non_field_errors }}
+      {{ form.errors }}
+    </div>
+  {% endif %}
+
+  {% for f in formset.forms %}
+    {% if f.errors or f.non_field_errors %}
+      <div class="alert alert-danger mt-2">
+        {{ f.non_field_errors }}
+        {{ f.errors }}
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  {% if formset.non_form_errors %}
+    <div class="alert alert-danger mt-2">
+      {{ formset.non_form_errors }}
+    </div>
+  {% endif %}
+
+  <h4 class="mt-3">Total: Q <span id="total-live">0.00</span></h4>
+
+  <div class="d-flex gap-2 mt-3">
+    <button type="submit" class="btn btn-success">Guardar y confirmar</button>
     <a class="btn btn-outline-light" href="{% url 'tienda:venta_list' %}">Cancelar</a>
   </div>
 </form>
 
-<!-- JS: autocompletar precio por litro según producto -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  // Precios enviados desde la vista
+  // Precios enviados desde la vista para autollenar
   const preciosArr = JSON.parse('{{ precios_json|escapejs }}'); // [{id, precio_litro}, ...]
   const precios = {};
   for (const p of preciosArr) precios[String(p.id)] = String(p.precio_litro);
 
-  function syncRow(row) {
+  function bindRow(row){
     const sel = row.querySelector("select[name$='-producto']");
+    const litros = row.querySelector("input[name$='-litros']");
     const precio = row.querySelector("input[name$='-precio_unitario']");
-    if (!sel || !precio) return;
 
     const setPrice = () => {
-      const pid = sel.value;
-      if (precios[pid]) precio.value = precios[pid];
+      const pid = sel?.value;
+      if (pid && precios[pid] && precio) precio.value = precios[pid];
+      recalcTotal();
     };
 
-    sel.addEventListener('change', setPrice);
+    sel && sel.addEventListener('change', setPrice);
+    litros && litros.addEventListener('input', recalcTotal);
+    precio && precio.addEventListener('input', recalcTotal);
 
-    // Si el precio está vacío al cargar, intenta autollenarlo
-    if (!precio.value) setPrice();
+    // Autollenado al cargar si está vacío
+    if (precio && !precio.value) setPrice();
   }
 
-  document.querySelectorAll('tbody tr').forEach(syncRow);
+  function recalcTotal(){
+    let tot = 0;
+    document.querySelectorAll("tbody tr").forEach(tr=>{
+      const l = parseFloat(tr.querySelector("input[name$='-litros']")?.value || 0);
+      const p = parseFloat(tr.querySelector("input[name$='-precio_unitario']")?.value || 0);
+      tot += l*p;
+    });
+    const el = document.getElementById("total-live");
+    if (el) el.textContent = (Math.round(tot*100)/100).toFixed(2);
+  }
+
+  // Enlaza filas existentes
+  document.querySelectorAll('tbody tr').forEach(bindRow);
+  recalcTotal();
+
+  // Agregar línea: corrige name/id/for al nuevo índice del formset
+  const addBtn = document.getElementById("add-row");
+  addBtn && addBtn.addEventListener("click", ()=>{
+    const totalInput = document.querySelector("input[name='det-TOTAL_FORMS']");
+    const idx = parseInt(totalInput.value,10);
+    const tbody = document.querySelector("tbody");
+    const first = tbody.querySelector("tr");
+    const clone = first.cloneNode(true);
+
+    // Limpiar y renumerar todos los campos/clasicos de Django formset: det-<i>-campo
+    clone.querySelectorAll("input,select,label").forEach(el=>{
+      if (el.name)     el.name = el.name.replace(/-(\d+)-/, `-${idx}-`);
+      if (el.id)       el.id   = el.id.replace(/-(\d+)-/, `-${idx}-`);
+      if (el.htmlFor)  el.htmlFor = el.htmlFor.replace(/-(\d+)-/, `-${idx}-`);
+
+      if (el.tagName === "INPUT") {
+        if (el.type === "checkbox" || el.type === "radio") el.checked = false;
+        else el.value = "";
+      }
+      if (el.tagName === "SELECT") el.selectedIndex = 0;
+    });
+
+    tbody.appendChild(clone);
+    totalInput.value = idx + 1;
+    bindRow(clone);
+  });
 });
 </script>
 {% endblock %}

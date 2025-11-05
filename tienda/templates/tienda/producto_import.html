@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Importar productos{% endblock %}
+{% block content %}
+<h1>Importar productos (CSV)</h1>
+<p>Cabeceras requeridas: <code>Nombre,Tipo,PrecioLitro,Stock,Activo</code></p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+  <input type="file" name="archivo" accept=".csv" class="form-control" required>
+  <div class="mt-3">
+    <button class="btn btn-primary">Subir</button>
+    <a class="btn btn-outline-light" href="{% url 'tienda:producto_list' %}">Volver</a>
+  </div>
+</form>
+{% endblock %}

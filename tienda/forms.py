@@ -22,9 +22,17 @@ class DetalleVentaForm(forms.ModelForm):
         model = DetalleVenta
         fields = ["producto", "litros", "precio_unitario"]
         widgets = {
-            "litros": forms.NumberInput(attrs={"step": "0.01"}),
-            "precio_unitario": forms.NumberInput(attrs={"step": "0.01"}),
+            "litros": forms.NumberInput(attrs={"step":"0.01", "min":"0.01"}),
+            "precio_unitario": forms.NumberInput(attrs={"step":"0.01", "readonly":"readonly"}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        prod = cleaned.get("producto")
+        litros = cleaned.get("litros")
+        if prod and litros and litros > prod.stock_litros:
+            raise forms.ValidationError(f"Stock insuficiente de {prod.nombre}. Disponible: {prod.stock_litros} L.")
+        return cleaned
 
 DetalleVentaFormSet = inlineformset_factory(
     Venta, DetalleVenta, form=DetalleVentaForm,
