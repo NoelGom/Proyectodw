@@ -5,12 +5,13 @@ from .models import Producto, Cliente, Venta, DetalleVenta
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['nombre', 'tipo', 'precio_por_litro', 'stock', 'activo']
+        fields = ['nombre', 'tipo', 'precio_litro', 'stock_litros', 'activo']
+
 
 class ClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente
-        fields = ['nombre', 'telefono', 'nit']
+        fields = ['nombres', 'apellidos', 'telefono', 'nit']
 
 class VentaForm(forms.ModelForm):
     class Meta:
