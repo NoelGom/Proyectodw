@@ -3,7 +3,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Clientes</title>
+  <title>Catálogo de Productos</title>
   <link rel="stylesheet" href="{% static 'base.css' %}">
 </head>
 <body>
@@ -15,23 +15,22 @@
     <a href="{% url 'tienda:catalogo' %}">Catálogo</a>
   </nav>
 
-  <h2>Clientes</h2>
-  <p><a href="{% url 'tienda:cliente_new' %}">Nuevo</a></p>
+  <h2>Catálogo de Productos</h2>
+  <p>Consulta los productos disponibles sin necesidad de acceder al panel de administración.</p>
 
   <table>
     <thead>
-      <tr><th>Nombre</th><th>Teléfono</th><th>NIT</th><th></th></tr>
+      <tr><th>Nombre</th><th>Tipo</th><th>Precio por litro</th></tr>
     </thead>
     <tbody>
-      {% for c in clientes %}
+      {% for producto in productos %}
       <tr>
-        <td>{{ c.nombre }}</td>
-        <td>{{ c.telefono }}</td>
-        <td>{{ c.nit }}</td>
-        <td><a href="{% url 'tienda:cliente_edit' c.id %}">Editar</a></td>
+        <td>{{ producto.nombre }}</td>
+        <td>{{ producto.tipo|default:"-" }}</td>
+        <td>Q {{ producto.precio_litro|floatformat:2 }}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="4">Sin clientes.</td></tr>
+      <tr><td colspan="3">No hay productos disponibles.</td></tr>
       {% endfor %}
     </tbody>
   </table>

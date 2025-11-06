@@ -20,12 +20,12 @@
 
   <table>
     <thead>
-      <tr><th>Nombre</th><th>Teléfono</th><th>NIT</th><th></th></tr>
+      <tr><th>Cliente</th><th>Teléfono</th><th>NIT</th><th></th></tr>
     </thead>
     <tbody>
       {% for c in clientes %}
       <tr>
-        <td>{{ c.nombre }}</td>
+        <td>{{ c.nombre_completo }}</td>
         <td>{{ c.telefono }}</td>
         <td>{{ c.nit }}</td>
         <td><a href="{% url 'tienda:cliente_edit' c.id %}">Editar</a></td>
