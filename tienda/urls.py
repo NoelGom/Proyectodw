@@ -24,5 +24,5 @@ urlpatterns = [
     path("catalogo/", views.catalogo, name="catalogo"),
 
     
-    path("api/producto/<int:pk>/precio/", views.api_producto_precio, name="api_producto_precio"),
+    path("api/producto/<int:pk>/", views.api_producto_precio, name="api_producto_precio"),
 ]

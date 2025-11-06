@@ -14,7 +14,7 @@
 
   <fieldset>
     <legend>Detalles</legend>
-    <table id="detalles" style="width:100%;max-width:900px;">
+    <table id="detalles" style="width:100%;max-width:900px;" data-api-base="/api/producto/">
       <thead>
         <tr>
           <th style="width:55%;">Producto</th>
@@ -46,55 +46,98 @@
 </form>
 
 <script>
-(function() {
-  function updatePrice(selectEl) {
-    const pk = selectEl.value;
-    if (!pk) return;
-    fetch("{% url 'tienda:api_producto_precio' 1 %}".replace("1","") + pk + "/")
-      .then(r => r.json())
-      .then(data => {
-        const row = selectEl.closest("tr");
-        const precioInput = row.querySelector("input[name$='-precio_unitario']");
-        if (precioInput && data.precio_por_litro !== undefined) {
-          precioInput.value = data.precio_por_litro;
-        }
-      })
-      .catch(() => {});
+(function () {
+ 
+  function findPrecioInput(rowEl) {
+   
+    let el = rowEl.querySelector("input[name$='-precio_unitario']");
+    if (el) return el;
+    
+    const cells = rowEl.querySelectorAll("td");
+    if (cells.length >= 3) {
+      const candidate = cells[2].querySelector("input");
+      if (candidate) return candidate;
+    }
+    return null;
   }
 
+  function getApiCandidates(base, pk) {
+   
+    const bases = [];
+    if (base) bases.push(base);
+   
+    bases.push("/api/producto/");
+    bases.push("/tienda/api/producto/");
+    bases.push("/productos/api/");
+  
+    return bases
+      .map(b => (b.endsWith("/") ? b : b + "/"))
+      .map(b => b + String(pk) + "/");
+  }
 
+  async function fetchPrecio(pk) {
+    const table = document.getElementById("detalles");
+    const base = table?.dataset?.apiBase || "";
+    const candidates = getApiCandidates(base, pk);
+    for (const url of candidates) {
+      try {
+        const r = await fetch(url, { credentials: "same-origin" });
+        if (!r.ok) continue;
+        const data = await r.json();
+        if (typeof data.precio_por_litro !== "undefined") {
+          return data.precio_por_litro;
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  async function updatePrice(selectEl) {
+    const pk = selectEl.value;
+    if (!pk) return;
+    const row = selectEl.closest("tr");
+    const precioInput = findPrecioInput(row);
+    if (!precioInput) return;
+
+    const precio = await fetchPrecio(pk);
+    if (precio !== null) {
+      precioInput.value = precio;
+    }
+  }
+
+  
   document.querySelectorAll("select[name$='-producto']").forEach(sel => {
     sel.addEventListener("change", () => updatePrice(sel));
-
-    if (sel.value) updatePrice(sel);
+    if (sel.value) updatePrice(sel); 
   });
 
   
   const btnAdd = document.getElementById("agregar-linea");
   btnAdd?.addEventListener("click", () => {
     const tbody = document.querySelector("#detalles tbody");
-    const totalForms = document.querySelector("input[name='det-TOTAL_FORMS']");
+    const totalForms = document.querySelector("input[name$='-TOTAL_FORMS']");
     const formIdx = parseInt(totalForms.value, 10);
     const lastRow = tbody.querySelector("tr.detalle-row:last-child");
     const newRow = lastRow.cloneNode(true);
 
-
+  
     newRow.querySelectorAll("input, select").forEach(el => {
+      
       ["name","id"].forEach(attr => {
         if (el.hasAttribute(attr)) {
-          el.setAttribute(attr, el.getAttribute(attr).replace(/det-\d+-/g, "det-" + formIdx + "-"));
+          el.setAttribute(attr, el.getAttribute(attr).replace(/-\d+-/, "-" + formIdx + "-"));
         }
       });
       if (el.tagName === "SELECT") el.value = "";
       else if (el.type === "number" || el.type === "text") el.value = "";
+      if (el.type === "checkbox") el.checked = false;
     });
 
     tbody.appendChild(newRow);
     totalForms.value = formIdx + 1;
 
-  
     const prodSel = newRow.querySelector("select[name$='-producto']");
-    prodSel.addEventListener("change", () => updatePrice(prodSel));
+    prodSel?.addEventListener("change", () => updatePrice(prodSel));
   });
 })();
 </script>

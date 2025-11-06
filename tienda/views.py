@@ -170,3 +170,18 @@ def api_producto_precio(request, pk):
 
 def catalogo(request):
     return render(request, "tienda/catalogo.html")
+
+
+
+from django.http import JsonResponse, Http404
+from django.views.decorators.http import require_GET
+from .models import Producto
+
+@require_GET
+def api_producto_precio(request, pk: int):
+    try:
+        p = Producto.objects.get(pk=pk)
+    except Producto.DoesNotExist:
+        raise Http404("Producto no existe")
+
+    return JsonResponse({"id": p.pk, "precio_por_litro": float(p.precio_por_litro)})
