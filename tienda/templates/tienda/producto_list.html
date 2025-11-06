@@ -1,38 +1,44 @@
-{% extends "base.html" %}
-{% block title %}Productos{% endblock %}
-{% block content %}
-<h2>Productos</h2>
+{% load static %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Productos</title>
+  <link rel="stylesheet" href="{% static 'base.css' %}">
+</head>
+<body>
+  <h1>Jabones a Granel</h1>
+  <nav>
+    <a href="{% url 'tienda:producto_list' %}">Productos</a>
+    <a href="{% url 'tienda:cliente_list' %}">Clientes</a>
+    <a href="{% url 'tienda:venta_list' %}">Ventas</a>
+    <a href="{% url 'tienda:catalogo' %}">Catálogo</a>
+  </nav>
 
-<form method="get" class="mt">
-  <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Buscar...">
-  <button class="btn">Buscar</button>
-  <a class="btn" href="{% url 'tienda:producto_crear' %}">Nuevo</a>
-</form>
+  <h2>Productos</h2>
+  <form method="get">
+    <input type="text" name="q" placeholder="Buscar..." value="{{ request.GET.q }}">
+    <button type="submit">Buscar</button>
+    <a href="{% url 'tienda:producto_new' %}">Nuevo</a>
+  </form>
 
-{% if productos %}
-<table class="mt">
-  <thead>
-    <tr>
-      <th>Nombre</th>
-      <th>Tipo</th>
-      <th>Precio/L</th>
-      <th>Stock</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for p in productos %}
-    <tr>
-      <td>{{ p.nombre }}</td>
-      <td>{{ p.tipo }}</td>
-      <td>Q {{ p.precio_por_litro }}</td>
-      <td>{{ p.stock }}</td>
-      <td><a href="{% url 'tienda:producto_editar' p.id %}">Editar</a></td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="muted">Sin productos.</p>
-{% endif %}
-{% endblock %}
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Tipo</th><th>Precio/L</th><th>Stock</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for p in productos %}
+      <tr>
+        <td>{{ p.nombre }}</td>
+        <td>{{ p.tipo }}</td>
+        <td>Q {{ p.precio_por_litro|default_if_none:"0"|floatformat:2 }}</td>
+        <td>{{ p.stock|default_if_none:"0"|floatformat:2 }}</td>
+        <td><a href="{% url 'tienda:producto_edit' p.id %}">Editar</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5">Sin productos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

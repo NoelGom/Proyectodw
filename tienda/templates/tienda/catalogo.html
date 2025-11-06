@@ -1,11 +1,39 @@
-{% extends "base.html" %}
-{% block content %}
-<h1>Catálogo</h1>
-<ul>
-  {% for p in productos %}
-    <li>{{ p.nombre }} — Q{{ p.precio_por_litro }} / L</li>
-  {% empty %}
-    <li>Sin productos activos.</li>
-  {% endfor %}
-</ul>
-{% endblock %}
+{% load static %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Clientes</title>
+  <link rel="stylesheet" href="{% static 'base.css' %}">
+</head>
+<body>
+  <h1>Jabones a Granel</h1>
+  <nav>
+    <a href="{% url 'tienda:producto_list' %}">Productos</a>
+    <a href="{% url 'tienda:cliente_list' %}">Clientes</a>
+    <a href="{% url 'tienda:venta_list' %}">Ventas</a>
+    <a href="{% url 'tienda:catalogo' %}">Catálogo</a>
+  </nav>
+
+  <h2>Clientes</h2>
+  <p><a href="{% url 'tienda:cliente_new' %}">Nuevo</a></p>
+
+  <table>
+    <thead>
+      <tr><th>Nombre</th><th>Teléfono</th><th>NIT</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for c in clientes %}
+      <tr>
+        <td>{{ c.nombre }}</td>
+        <td>{{ c.telefono }}</td>
+        <td>{{ c.nit }}</td>
+        <td><a href="{% url 'tienda:cliente_edit' c.id %}">Editar</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Sin clientes.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
