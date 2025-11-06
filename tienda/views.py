@@ -1,10 +1,12 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
-from django.db import transaction
-from django.urls import reverse
 from decimal import Decimal
-from .models import Producto, Cliente, Venta, DetalleVenta
-from .forms import ProductoForm, ClienteForm, VentaForm, DetalleVentaFormSet
+
+from django.db import transaction
+from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+
+from .forms import ClienteForm, DetalleVentaFormSet, ProductoForm, VentaForm
+from .models import Cliente, DetalleVenta, Producto, Venta
 
 
 def producto_list(request):
@@ -25,9 +27,9 @@ def producto_edit(request, pk=None):
 
 def cliente_list(request):
     q = request.GET.get('q', '').strip()
-    clientes = Cliente.objects.all().order_by('nombre')
+    clientes = Cliente.objects.all().order_by('apellidos', 'nombres')
     if q:
-        clientes = clientes.filter(nombre__icontains=q)
+        clientes = clientes.filter(Q(nombres__icontains=q) | Q(apellidos__icontains=q))
     return render(request, 'tienda/cliente_list.html', {'clientes': clientes})
 
 def cliente_edit(request, pk=None):
@@ -48,33 +50,28 @@ def venta_create(request):
     form = VentaForm(request.POST or None)
     formset = DetalleVentaFormSet(request.POST or None, prefix='d')
    
-    product_prices = {p.id: str(p.precio_por_litro) for p in Producto.objects.all()}
+    product_prices = {p.id: str(p.precio_litro) for p in Producto.objects.all()}
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
-        venta = form.save(commit=False)
-        venta.total = Decimal('0')
-        venta.save()
-
-        total = Decimal('0')
+        venta = form.save()
         detalles = formset.save(commit=False)
         for d in detalles:
             d.venta = venta
-           
-            if not d.precio_unitario or d.precio_unitario == 0:
-                d.precio_unitario = d.producto.precio_por_litro or Decimal('0')
-            d.save()
-            total += d.litros * d.precio_unitario
-         
-            if d.producto:
-                d.producto.stock = (d.producto.stock or 0) - (d.litros or 0)
-                d.producto.save(update_fields=['stock'])
 
-       
+            if not d.precio_unitario:
+                d.precio_unitario = d.producto.precio_litro or Decimal('0')
+            d.save()
+
+
         for obj in formset.deleted_objects:
             obj.delete()
 
-        venta.total = total
-        venta.save(update_fields=['total'])
-        return redirect('tienda:venta_list')
+        try:
+            venta.confirmar()
+        except ValueError as exc:
+            transaction.set_rollback(True)
+            form.add_error(None, str(exc))
+        else:
+            return redirect('tienda:venta_list')
 
     return render(
         request,
@@ -85,7 +82,7 @@ def venta_create(request):
 
 def api_precio_producto(request, pk):
     p = get_object_or_404(Producto, pk=pk)
-    return JsonResponse({'precio': str(p.precio_por_litro)})
+    return JsonResponse({'precio': str(p.precio_litro)})
 
 
 def catalogo(request):
